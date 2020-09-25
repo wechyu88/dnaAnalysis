@@ -33,8 +33,11 @@ public class AutoCorrelationAmberDNAWATER extends AutoCorrelation{
 		  pathOutput+"/"+outDNA; String minorMajorPath = argv[7]; int majorOrMinor =
 		  Integer.valueOf(argv[8]);
 		 
+		  
+		 
 		  AutoCorrelationAmberDNAWATER acDNAWATER = new AutoCorrelationAmberDNAWATER();
-
+		
+		
 		
 		/*
 		 * String pathInput =
@@ -44,17 +47,18 @@ public class AutoCorrelationAmberDNAWATER extends AutoCorrelation{
 		 * String outDNA = "DNAcor.txt"; String pathwaterCor = pathOutput+"/"+outWater;
 		 * String pathDNACor = pathOutput+"/"+outDNA; String minorMajorPath =
 		 * pathOutput+"minorOrMajor.txt"; double rad = 3.6; double averageRatio = 0.8;
-		 * int majorOrMinor = 0;
+		 * int majorOrMinor = 1;
 		 */
+		 
 		  
 		// runWaterDNAShell(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio);
 		  //runWaterDNAShell(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio);
-		  acDNAWATER.countWaterInShellMinorMajor(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio,minorMajorPath,majorOrMinor);
-		 // CalWaterInShellTime(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio);
+		 // acDNAWATER.countWaterInShellMinorMajor(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio,minorMajorPath,majorOrMinor);
+		  //CalWaterInShellTime(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio);
 		  //runWaterCor(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,averageRatio);
 		  
-		 acDNAWATER.CalWaterInShellTimeGrooves(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio,minorMajorPath,majorOrMinor);
-		
+		 // acDNAWATER.CalWaterInShellTimeGrooves(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio,minorMajorPath,majorOrMinor);
+		  acDNAWATER.calResTime(pathInput,numberCores,numberAverageStep,outWater,outDNA,pathOutput,rad,averageRatio,minorMajorPath,majorOrMinor);
 		  /*
 		 * String path = pathInput; readdumpCustom rdc = new readdumpCustom(path);
 		 * AutoCorrelationAmberDNAWATER acl = new
@@ -161,6 +165,36 @@ public class AutoCorrelationAmberDNAWATER extends AutoCorrelation{
 		
 		pwwaterCor.close();
 		pwglyCor.close();
+	}
+	public void calResTime(String pathInput, int numberCores,int numberAverageStep,String outWater,String outDNA,String pathOutput,double rad,double averageRatio,String minorMajorPath,int MajorOrMinor) throws IOException {
+		String path = pathInput;
+		long start = System.currentTimeMillis();
+		// some time passes
+
+		String pathwaterCor = pathOutput+"/"+outWater; 
+		String pathDNACor = pathOutput+"/"+outDNA;
+		readdumpCustom rdc = new readdumpCustom(path);
+		
+		
+		AutoCorrelationAmberDNAWATER acl = new AutoCorrelationAmberDNAWATER(numberAverageStep,rdc);
+		HashMap<Integer,ArrayList<Integer>> timedis = acl.init6(rad,MajorOrMinor,minorMajorPath);		
+		
+
+		PrintWriter pwwaterCor = new PrintWriter(new File(pathwaterCor));
+		PrintWriter pwglyCor = new PrintWriter(new File(pathDNACor));
+		for(int key:timedis.keySet()) {
+			pwwaterCor.print(key+" ");
+			for(int id:timedis.get(key)) {
+				pwwaterCor.print(id+" ");
+			}
+			pwwaterCor.print("\n");
+		}
+		
+		pwwaterCor.close();
+		pwglyCor.close();
+		long end = System.currentTimeMillis();
+		long elapsedTime = (end - start)/1000;
+		System.out.println("using time "+elapsedTime+"s");
 	}
 	public static void runWaterDNAShell(String pathInput, int numberCores,int numberAverageStep,String outWater,String outDNA,String pathOutput,double rad,double averageRatio) throws IOException, InterruptedException {
 		String path = pathInput;
@@ -1021,6 +1055,171 @@ public class AutoCorrelationAmberDNAWATER extends AutoCorrelation{
 		}
 		countWaterInShell.close();
 		
+	}
+	public HashMap<Integer,ArrayList<Integer>>  init6(double rad,int MajorOrMinor,String minorMajorPath ) throws IOException {//cal water id in first hydration shell each timestep
+		dumpOneStep dos= readdumpCustom.readAverageNStep(this.rdc.br,this.averageN);
+		ArrayList<Integer> waterID = new ArrayList<Integer>();
+		this.timeWaterDipole = new 	HashMap<Integer,HashMap<Integer,water>> ();
+		int init = 0;
+		readMinorMajorAtom(minorMajorPath);
+
+		String outputdir =  System.getProperty("user.dir")+"/";
+		HashMap<Integer,ArrayList<Integer>> timedis= new HashMap<Integer,ArrayList<Integer>>() ;
+
+		String pathwaterCor = outputdir+"countWaterInShell.txt";
+
+		PrintWriter countWaterInShell = new PrintWriter(new File(pathwaterCor));
+		int length=0;
+		while(dos.timestep!=-1) {
+			//System.out.println(dos.xhi);
+			if(init==0) {
+					
+	
+				
+				HashMap<Integer,water> waterList = new HashMap<Integer,water>();
+	
+				HashMap<Integer,atomGroup> DNAlist = new HashMap<Integer,atomGroup>();
+				for(Atom a:dos.atomlist) {
+					if(a.type!=17&&a.type!=18&&a.type!=16) {
+						if(DNAlist.containsKey(a.moelculeid)) {
+							DNAlist.get(a.moelculeid).addAtom(a);
+						}else {
+							atomGroup newgroup = new atomGroup();
+							newgroup.addAtom(a);
+							DNAlist.put(a.moelculeid, newgroup );
+						}						
+					}else if(a.type==17||a.type==18) {
+						if(waterList.containsKey(a.moelculeid)) {
+							waterList.get(a.moelculeid).addAtom(a);
+							if(a.type==17) {
+								waterList.get(a.moelculeid).setOxy(a);
+	
+							}
+							
+						}else {
+							water newgroup = new water();
+							newgroup.addAtom(a);
+							if(a.type==17) {
+								newgroup.setOxy(a);
+							}						
+	
+							waterList.put(a.moelculeid, newgroup );
+						}					
+					}
+					
+					
+				}
+
+				//timelist.add(dos.timestep);
+		
+				
+				
+				
+				////////////////////
+	
+				timelist.add(dos.timestep);
+				HashMap<Integer,water> newWaterList = waterWithinShell2(dos.xlo,dos.xhi,dos.ylo,dos.yhi,dos.zlo,dos.zhi,waterList,DNAlist,rad,MajorOrMinor);
+				
+				 
+				length++;
+				//countWaterInShell.println("timestep "+dos.timestep+" water number in shell "+rad+" is " +newWaterList.keySet().size());
+				 
+				 
+				
+				ArrayList<Integer> waterIdThisTime = new ArrayList<Integer>();
+				waterIdThisTime.add(newWaterList.size());
+
+
+				 
+				 
+				
+				for(Integer id:newWaterList.keySet()) {
+					//newWaterList.get(id).caldipole(dos.xlo,dos.xhi,dos.ylo,dos.yhi,dos.zlo,dos.zhi);
+					waterIdThisTime.add(id);
+
+				}
+				timedis.put(length,waterIdThisTime);
+
+	
+				//System.out.println(dos.timestep+" "+newWaterList.size()+" "+DNAlist.size()+" "+rad+" "+dos.xlo+" "+dos.xhi+" "+dos.ylo+" "+dos.yhi+" "+dos.zlo+" "+dos.zhi);
+				this.timeWaterDipole.put(dos.timestep,newWaterList);
+				
+				
+				  for(int id:this.timeWaterDipole.get(dos.timestep).keySet()) {
+				  waterID.add(id); }
+				 
+				this.timeDNADipole.put(dos.timestep,DNAlist);
+				init++;
+			}else {
+				HashMap<Integer,water> waterList = new HashMap<Integer,water>();
+				
+				HashMap<Integer,atomGroup> DNAlist = new HashMap<Integer,atomGroup>();
+				for(Atom a:dos.atomlist) {
+					if(a.type!=17&&a.type!=18&&a.type!=16) {
+						if(DNAlist.containsKey(a.moelculeid)) {
+							DNAlist.get(a.moelculeid).addAtom(a);
+						}else {
+							atomGroup newgroup = new atomGroup();
+							newgroup.addAtom(a);
+							DNAlist.put(a.moelculeid, newgroup );
+						}						
+					}else if((a.type==17||a.type==18)) {
+						if(waterList.containsKey(a.moelculeid)) {
+							waterList.get(a.moelculeid).addAtom(a);
+							if(a.type==17) {
+								waterList.get(a.moelculeid).setOxy(a);
+	
+							}
+							
+						}else {
+							water newgroup = new water();
+							newgroup.addAtom(a);
+							if(a.type==17) {
+								newgroup.setOxy(a);
+							}						
+	
+							waterList.put(a.moelculeid, newgroup );
+						}					
+					}
+					
+					
+				}
+
+				//timelist.add(dos.timestep);
+		
+				HashMap<Integer,water> newWaterList = waterWithinShell2(dos.xlo,dos.xhi,dos.ylo,dos.yhi,dos.zlo,dos.zhi,waterList,DNAlist,rad,MajorOrMinor);
+				
+				countWaterInShell.println("timestep "+dos.timestep+" water number in shell "+rad+" is " +newWaterList.keySet().size());
+				length++;
+				//countWaterInShell.println("timestep "+dos.timestep+" water number in shell "+rad+" is " +newWaterList.keySet().size());
+				 
+				 
+				
+				ArrayList<Integer> waterIdThisTime = new ArrayList<Integer>();
+				waterIdThisTime.add(newWaterList.size());
+				
+				//System.out.println(waterID.size()+" "+newWaterList.size());
+				
+				for(Integer id:newWaterList.keySet()) {
+					//newWaterList.get(id).caldipole(dos.xlo,dos.xhi,dos.ylo,dos.yhi,dos.zlo,dos.zhi);
+					waterIdThisTime.add(id);
+				}
+	
+				////////////////////
+				timedis.put(length,waterIdThisTime);
+
+				timelist.add(dos.timestep);
+				this.timeWaterDipole.put(dos.timestep,newWaterList);
+
+				this.timeDNADipole.put(dos.timestep,DNAlist);
+				
+				
+			}
+			dos = readdumpCustom.readAverageNStep(this.rdc.br,this.averageN);
+	
+		}
+		countWaterInShell.close();
+		return timedis;
 	}
 
 	

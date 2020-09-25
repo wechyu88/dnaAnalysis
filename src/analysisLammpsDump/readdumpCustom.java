@@ -171,6 +171,10 @@ public class readdumpCustom {
 		oneStep.setAtomlist(atmlist);
 		return oneStep;
 	}
+	public void close() throws IOException {
+		this.br.close();
+		
+	}
 	public static dumpOneStep readnextStep(BufferedReader br) throws IOException {
 		String line=br.readLine();
 		dumpOneStep oneStep = new dumpOneStep();
@@ -243,7 +247,7 @@ public class readdumpCustom {
 		ArrayList<dumpOneStep> oneStepList = new ArrayList<dumpOneStep>();
 		for(int i=0;i<n;i++) {
 			dumpOneStep tempOneStep =  readnextStep(br);
-			System.out.println(tempOneStep.timestep+" readaverage");
+		//	System.out.println(tempOneStep.timestep+" readaverage");
 
 			oneStepList.add(tempOneStep);
 			if(tempOneStep.timestep==-1) {
